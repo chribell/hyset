@@ -12,7 +12,7 @@
 #include <hyset/hybrid_algorithms.hpp>
 #include <hyset/device_algorithms.hpp>
 #include <hyset/output.hpp>
-#include <moodycamel/concurrentqueue.h>
+#include <concurrentqueue.h>
 
 
 typedef std::pair<hyset::structs::partition*, hyset::structs::partition*> partition_pair;
@@ -295,10 +295,8 @@ int main(int argc, char** argv) {
                 "└{10:─^{1}}┘\n", "Joins processed", 51, 16, 17, "CPU", hostJoins, std::to_string(hostPercentage) + "%", "GPU", deviceJoins, std::to_string(devicePercentage) + "%", "");
 
         if (timings) {
-            std::cout << *hostTimer;
-            std::cout << "\n";
-            std::cout << *deviceTimer;
-            std::cout << "\n";
+            hostTimer->print();
+            deviceTimer->print();
         }
 
         fmt::print("┌{0:─^{1}}┐\n"

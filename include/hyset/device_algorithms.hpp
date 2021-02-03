@@ -166,7 +166,7 @@ namespace hyset{
                         }
 
                         count = cuda::memory::managed::make_unique<unsigned int>();
-                        cuda::memory::zero(count.get(), sizeof(unsigned int));
+                        cuda::memory::zero({count.get(), sizeof(unsigned int)});
                         timer->finish(allocateMemory);
                     }
 
@@ -217,13 +217,13 @@ namespace hyset{
                             tmp.resize(*globalCount);
                             cuda::memory::copy(&tmp[0], pairs->output->ptr.get(), sizeof(hyset::structs::pair) * (*globalCount));
                             pairsHandler->pairs.insert(std::end(pairsHandler->pairs), std::begin(tmp), std::end(tmp));
-                            cuda::memory::zero(count.get(), sizeof(unsigned int));
+                            cuda::memory::zero({count.get(), sizeof(unsigned int)});
                         }
                         timer->finish(verifyTime);
 
                         hyset::timer::device::EventPair* emptyFilter =  timer->add("Clear filter space", 0);
                         // empty device memory for next join
-                        cuda::memory::zero(filter->ptr.get(), sizeof(unsigned int) * filter->length);
+                        cuda::memory::zero({filter->ptr.get(), sizeof(unsigned int) * filter->length});
                         timer->finish(emptyFilter);
 
                     }
@@ -343,7 +343,7 @@ namespace hyset{
                         }
 
                         count = cuda::memory::managed::make_unique<unsigned int>();
-                        cuda::memory::zero(count.get(), sizeof(unsigned int));
+                        cuda::memory::zero({count.get(), sizeof(unsigned int)});
                         timer->finish(allocateMemory);
                     }
 
@@ -401,13 +401,13 @@ namespace hyset{
                             tmp.resize(*globalCount);
                             cuda::memory::copy(&tmp[0], pairs->output->ptr.get(), sizeof(hyset::structs::pair) * (*globalCount));
                             pairsHandler->pairs.insert(std::end(pairsHandler->pairs), std::begin(tmp), std::end(tmp));
-                            cuda::memory::zero(count.get(), sizeof(unsigned int));
+                            cuda::memory::zero({count.get(), sizeof(unsigned int)});
                         }
                         timer->finish(verifyTime);
 
                         hyset::timer::device::EventPair* emptyFilter =  timer->add("Clear filter space", 0);
                         // empty device memory for next join
-                        cuda::memory::zero(filter->ptr.get(), sizeof(unsigned int) * filter->length);
+                        cuda::memory::zero({filter->ptr.get(), sizeof(unsigned int) * filter->length});
                         timer->finish(emptyFilter);
                     }
 

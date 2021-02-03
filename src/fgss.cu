@@ -20,7 +20,6 @@ int main(int argc, char** argv) {
     try {
         double threshold = 0.95;
         unsigned int blockSize = 10000;
-        unsigned int bitmap = 64;
         std::string output;
         bool timings = false;
 
@@ -31,7 +30,6 @@ int main(int argc, char** argv) {
                 ("foreign-input", "Foreign input dataset file", cxxopts::value<std::string>())
                 ("block", "Block Size", cxxopts::value<unsigned int>(blockSize))
                 ("threshold", "Similarity threshold", cxxopts::value<double>(threshold))
-                ("bitmap", "Bitmap signature size", cxxopts::value<unsigned int>(bitmap))
                 ("output", "Output file path", cxxopts::value<std::string>(output))
                 ("timings", "Display timings", cxxopts::value<bool>(timings))
                 ("help", "Print help");
@@ -58,12 +56,10 @@ int main(int argc, char** argv) {
                 "│{5: ^{2}}|{6: ^{2}}│\n"
                 "│{7: ^{2}}|{8: ^{2}}│\n"
                 "│{9: ^{2}}|{10: ^{2}}│\n"
-                "│{11: ^{2}}|{12: ^{2}}│\n"
-                "└{13:─^{1}}┘\n", "Arguments", 51, 25,
+                "└{11:─^{1}}┘\n", "Arguments", 51, 25,
                 "Input", input.c_str(),
                 "Threshold", threshold,
                 "Block", blockSize,
-                "Bitmap", bitmap,
                 "Output", output.c_str(), ""
         );
 
@@ -109,16 +105,15 @@ int main(int argc, char** argv) {
 
         hyset::timer::host::Interval* joinTime = hostTimer->add("Join time");
 
-        auto* bitmapHandler =
-                new hyset::algorithms::device::bitmap::handler(deviceTimer,
-                                                                hostCollectionPtr,
-                                                                deviceCollection,
-                                                                bitmap,
-                                                                blockSize,
-                                                                output.empty(),
-                                                                threshold);
-        bitmapHandler->setOutputHandler(outputHandlers[&pair]);
-        bitmapHandler->join(pair.first, pair.second);
+        auto* fgssHandler =
+                new hyset::algorithms::device::fgssjoin::handler(deviceTimer,
+                                                                  hostCollectionPtr,
+                                                                  deviceCollection,
+                                                                  blockSize,
+                                                                  output.empty(),
+                                                                  threshold);
+        fgssHandler->setOutputHandler(outputHandlers[&pair]);
+        fgssHandler->join(pair.first, pair.second);
 
         hostTimer->finish(joinTime);
 
@@ -126,10 +121,8 @@ int main(int argc, char** argv) {
         timer.finish(totalTime);
 
         if (timings) {
-            std::cout << *hostTimer;
-            std::cout << "\n";
-            std::cout << *deviceTimer;
-            std::cout << "\n";
+            hostTimer->print();
+            deviceTimer->print();
         }
 
         fmt::print("┌{0:─^{1}}┐\n"

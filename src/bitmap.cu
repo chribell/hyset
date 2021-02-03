@@ -8,7 +8,7 @@
 #include <hyset/statistics.hpp>
 #include <hyset/partitioner.hpp>
 #include <hyset/timer.hpp>
-#include <hyset/host_algorithms.hpp>
+#include <hyset/device_algorithms.hpp>
 #include <hyset/output.hpp>
 
 
@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
     try {
         double threshold = 0.95;
         unsigned int blockSize = 10000;
-        std::string algorithm = "allpairs";
+        unsigned int bitmap = 64;
         std::string output;
         bool timings = false;
 
@@ -31,8 +31,8 @@ int main(int argc, char** argv) {
                 ("foreign-input", "Foreign input dataset file", cxxopts::value<std::string>())
                 ("block", "Block Size", cxxopts::value<unsigned int>(blockSize))
                 ("threshold", "Similarity threshold", cxxopts::value<double>(threshold))
+                ("bitmap", "Bitmap signature size", cxxopts::value<unsigned int>(bitmap))
                 ("output", "Output file path", cxxopts::value<std::string>(output))
-                ("algorithm", "CPU filtering algorithm (allpairs|ppjoin)", cxxopts::value<std::string>(algorithm))
                 ("timings", "Display timings", cxxopts::value<bool>(timings))
                 ("help", "Print help");
 
@@ -63,22 +63,26 @@ int main(int argc, char** argv) {
                 "Input", input.c_str(),
                 "Threshold", threshold,
                 "Block", blockSize,
-                "Algorithm", algorithm,
+                "Bitmap", bitmap,
                 "Output", output.c_str(), ""
         );
 
-        hyset::timer::host hostTimings;
-        hyset::timer::device deviceTimings;
+        hyset::timer::host timer;
+        std::shared_ptr<hyset::timer::host> hostTimer = std::make_shared<hyset::timer::host>();
+        std::shared_ptr<hyset::timer::device> deviceTimer = std::make_shared<hyset::timer::device>();
+
         hyset::collection::host_collection hostCollection;
 
-        hyset::timer::host::Interval* readInput = hostTimings.add("Read input collection");
+        hyset::timer::host::Interval* readInput = hostTimer->add("Read input collection");
         std::vector<hyset::structs::block> blocks =
                 hyset::collection::read_collection<jaccard>(input, hostCollection, blockSize, threshold);
-        hostTimings.finish(readInput);
+        hostTimer->finish(readInput);
 
-        hyset::timer::device::EventPair* transferInput = deviceTimings.add("Transfer input collection", 0);
+        hyset::timer::host::Interval* totalTime = timer.add("Total time");
+
+        hyset::timer::device::EventPair* transferInput = deviceTimer->add("Transfer collection", 0);
         hyset::collection::device_collection deviceCollection(hostCollection);
-        deviceTimings.finish(transferInput);
+        deviceTimer->finish(transferInput);
 
         std::vector<hyset::structs::block>::iterator block;
 
@@ -91,14 +95,6 @@ int main(int argc, char** argv) {
 
         output_map outputHandlers;
 
-        hyset::index::host_array_index* hostIndex;
-
-        hyset::timer::host::Interval* indexTime = hostTimings.add("Indexing for CPU partition");
-
-        hostIndex = hyset::index::make_inverted_index(partition, hostCollection);
-
-        hostTimings.finish(indexTime);
-
         partition_pair pair;
 
         pair = partition_pair(&partition, &partition); // R join R
@@ -109,30 +105,34 @@ int main(int argc, char** argv) {
             outputHandlers.insert(std::pair<partition_pair* , std::shared_ptr<hyset::output::pairs_handler>>(&pair, std::make_shared<hyset::output::pairs_handler>(hyset::output::pairs_handler())));
         }
 
-        hyset::timer::host::Interval* joinTime = hostTimings.add("Join time");
+        std::shared_ptr<hyset::collection::host_collection> hostCollectionPtr(&hostCollection);
+
+        hyset::timer::host::Interval* joinTime = hostTimer->add("Join time");
+
+        auto* bitmapHandler =
+                new hyset::algorithms::device::bitmap::handler(deviceTimer,
+                                                                hostCollectionPtr,
+                                                                deviceCollection,
+                                                                bitmap,
+                                                                blockSize,
+                                                                output.empty(),
+                                                                threshold);
+        bitmapHandler->setOutputHandler(outputHandlers[&pair]);
+        bitmapHandler->join(pair.first, pair.second);
+
+        hostTimer->finish(joinTime);
 
 
-        if (algorithm == "allpairs") {
-            hyset::algorithms::host::allpairs<hyset::structs::partition, hyset::index::host_array_index, jaccard>(
-                    pair.first,
-                    hostCollection,
-                    hostIndex,
-                    pair.second,
-                    hostCollection,
-                    outputHandlers[&pair],
-                    threshold);
-        } else {
-            hyset::algorithms::host::ppjoin<hyset::structs::partition, hyset::index::host_array_index, jaccard>(
-                    pair.first,
-                    hostCollection,
-                    hostIndex,
-                    pair.second,
-                    hostCollection,
-                    outputHandlers[&pair],
-                    threshold);
+        timer.finish(totalTime);
+
+        if (timings) {
+            hostTimer->print();
+            deviceTimer->print();
         }
 
-        hostTimings.finish(joinTime);
+        fmt::print("┌{0:─^{1}}┐\n"
+                   "|{2: ^{1}}|\n"
+                   "└{3:─^{1}}┘\n", "Total time without I/O (secs)", 51, timer.total(), "");
 
         if (!output.empty()) { // output pairs to file
             fmt::print("Join finished, writing pairs to file\n");
@@ -146,12 +146,6 @@ int main(int argc, char** argv) {
                        "|{2: ^{1}}|\n"
                        "└{3:─^{1}}┘\n", "Result", 50, hyset::output::count(outputHandlers), "");
         }
-
-        if (timings) {
-            std::cout << hostTimings;
-        }
-
-
 
         return 0;
     } catch (const cxxopts::OptionException& e) {

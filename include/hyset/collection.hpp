@@ -5,7 +5,7 @@
 
 #include <vector>
 #include <tuple>
-#include <cuda/api_wrappers.hpp>
+#include <cuda/runtime_api.hpp>
 #include <hyset/structs.hpp>
 #include <hyset/similarity.hpp>
 #include <hyset/containers.hpp>

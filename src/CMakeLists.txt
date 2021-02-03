@@ -1,20 +1,59 @@
-set(CMAKE_CUDA_ARCHITECTURES OFF)
-# Note that headers are optional, and do not affect add_library, but they will not
-# show up in IDEs unless they are listed in add_library.
+add_executable(cpu cpu.cu)
+target_link_libraries(cpu PRIVATE cxxopts fmt::fmt)
+target_include_directories(cpu PRIVATE ../include ${cuda-api-wrappers_SOURCE_DIR}/src)
+set_target_properties(
+        cpu
+        PROPERTIES
+        CUDA_SEPARABLE_COMPILATION ON
+        CUDA_ARCHITECTURES ${SM_ARCH})
+target_compile_options(cpu PRIVATE -m64 --expt-extended-lambda --expt-relaxed-constexpr)
 
-# Optionally glob, but only for CMake 3.12 or later:
-file(GLOB HEADER_LIST CONFIGURE_DEPENDS "${ModernCMakeExample_SOURCE_DIR}/include/hyset/*.hpp")
+add_executable(dichotomy dichotomy.cu)
+target_link_libraries(dichotomy PRIVATE cxxopts fmt::fmt)
+target_include_directories(dichotomy PRIVATE ../include ${cuda-api-wrappers_SOURCE_DIR}/src)
+set_target_properties(
+        dichotomy
+        PROPERTIES
+        CUDA_SEPARABLE_COMPILATION ON
+        CUDA_ARCHITECTURES ${SM_ARCH})
+target_compile_options(dichotomy PRIVATE -m64 --expt-extended-lambda --expt-relaxed-constexpr)
 
-# Make an automatic library - will be static or dynamic based on user setting
-add_library(holset timer.cu ${HEADER_LIST})
+add_executable(hybrid hybrid.cu)
+target_link_libraries(hybrid PRIVATE cxxopts fmt::fmt)
+target_include_directories(hybrid PRIVATE ../include ${cuda-api-wrappers_SOURCE_DIR}/src)
+set_target_properties(
+        hybrid
+        PROPERTIES
+        CUDA_SEPARABLE_COMPILATION ON
+        CUDA_ARCHITECTURES ${SM_ARCH})
+target_compile_options(hybrid PRIVATE -m64 --expt-extended-lambda --expt-relaxed-constexpr)
 
-# We need this directory, and users of our library will need it too
-target_include_directories(holset PUBLIC ../include)
+add_executable(fgss fgss.cu)
+target_link_libraries(fgss PRIVATE cxxopts fmt::fmt)
+target_include_directories(fgss PRIVATE ../include ${cuda-api-wrappers_SOURCE_DIR}/src)
+set_target_properties(
+        fgss
+        PROPERTIES
+        CUDA_SEPARABLE_COMPILATION ON
+        CUDA_ARCHITECTURES ${SM_ARCH})
+target_compile_options(fgss PRIVATE -m64 --expt-extended-lambda --expt-relaxed-constexpr)
 
-target_link_libraries(holset cuda-api-wrappers)
+add_executable(bitmap bitmap.cu)
+target_link_libraries(bitmap PRIVATE cxxopts fmt::fmt)
+target_include_directories(bitmap PRIVATE ../include ${cuda-api-wrappers_SOURCE_DIR}/src)
+set_target_properties(
+        bitmap
+        PROPERTIES
+        CUDA_SEPARABLE_COMPILATION ON
+        CUDA_ARCHITECTURES ${SM_ARCH})
+target_compile_options(bitmap PRIVATE -m64 --expt-extended-lambda --expt-relaxed-constexpr)
 
-# All users of this library will need at least C++11
-target_compile_features(holset PUBLIC cxx_std_11)
-
-# IDEs should put the headers in a nice place
-source_group(TREE "${PROJECT_SOURCE_DIR}/include" PREFIX "Header Files" FILES ${HEADER_LIST})
+add_executable(queue queue.cu)
+target_link_libraries(queue PRIVATE cxxopts fmt::fmt)
+target_include_directories(queue PRIVATE ../include ${concurrentqueue_SOURCE_DIR} ${cuda-api-wrappers_SOURCE_DIR}/src)
+set_target_properties(
+        queue
+        PROPERTIES
+        CUDA_SEPARABLE_COMPILATION ON
+        CUDA_ARCHITECTURES ${SM_ARCH})
+target_compile_options(queue PRIVATE -m64 --expt-extended-lambda --expt-relaxed-constexpr)

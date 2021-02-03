@@ -145,7 +145,7 @@ namespace hybrid {
             }
 
             if (aggregate) {
-                cuda::memory::zero(deviceCounts->output->ptr.get(), sizeof(unsigned int) * probeCount);
+                cuda::memory::zero({deviceCounts->output->ptr.get(), sizeof(unsigned int) * probeCount});
 
                 if (scenario == 1) {
                     cuda::launch(hyset::algorithms::hybrid::kernels::scenario_1<jaccard, true>,

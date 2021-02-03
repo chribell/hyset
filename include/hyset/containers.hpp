@@ -17,7 +17,7 @@ namespace containers {
         size_t length;
 
         device_array(size_t len) : ptr(cuda::memory::managed::make_unique<T[]>(len)), length(len) {
-            cuda::memory::zero(ptr.get(), sizeof(T) * length);
+            cuda::memory::zero({ptr.get(), sizeof(T) * length});
         }
         device_array(std::vector<T>& hostArray) {
             length = hostArray.size();

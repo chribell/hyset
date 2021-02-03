@@ -29,9 +29,9 @@ namespace index {
         }
 
         inline void zero () {
-            cuda::memory::zero(offsets->ptr.get(), sizeof(unsigned int) * offsets->length);
-            cuda::memory::zero(lengths->ptr.get(), sizeof(unsigned int) * lengths->length);
-            cuda::memory::zero(index->ptr.get(), sizeof(hyset::structs::entry) * index->length);
+            cuda::memory::zero({offsets->ptr.get(), sizeof(unsigned int) * offsets->length});
+            cuda::memory::zero({lengths->ptr.get(), sizeof(unsigned int) * lengths->length});
+            cuda::memory::zero({index->ptr.get(), sizeof(hyset::structs::entry) * index->length});
         }
 
         ~device_index() { // api-wrappers RAII guarantees that memory will be freed
@@ -79,17 +79,14 @@ namespace index {
             }
 
             inline void next() {
-                assert(current >= 0);
                 current++;
             }
 
             inline hyset::structs::entry& operator*(){
-                assert(current >= 0);
                 return entries[current];
             }
 
             inline hyset::structs::entry* operator->() {
-                assert(current >= 0);
                 return &entries[current];
             }
 
@@ -158,17 +155,14 @@ namespace index {
             }
 
             inline void next() {
-                assert(current >= 0);
                 current++;
             }
 
             inline hyset::structs::entry& operator*(){
-                assert(current >= 0);
                 return list[current];
             }
 
             inline hyset::structs::entry* operator->() {
-                assert(current >= 0);
                 return &list[current];
             }
         };

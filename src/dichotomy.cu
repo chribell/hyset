@@ -287,10 +287,8 @@ int main(int argc, char** argv) {
         timer.finish(totalTime);
 
         if (timings) {
-            std::cout << *hostTimer;
-            std::cout << "\n";
-            std::cout << *deviceTimer;
-            std::cout << "\n";
+            hostTimer->print();
+            deviceTimer->print();
         }
 
         fmt::print("┌{0:─^{1}}┐\n"

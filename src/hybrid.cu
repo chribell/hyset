@@ -176,7 +176,7 @@ int main(int argc, char** argv) {
         }
 
         if (timings) {
-            std::cout << hostTimings;
+            hostTimings.print();
         }
 
 
