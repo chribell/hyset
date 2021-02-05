@@ -1,12 +1,22 @@
-add_executable(cpu cpu.cu)
-target_link_libraries(cpu PRIVATE cxxopts fmt::fmt)
-target_include_directories(cpu PRIVATE ../include ${cuda-api-wrappers_SOURCE_DIR}/src)
+add_executable(cpu_single cpu_single.cu)
+target_link_libraries(cpu_single PRIVATE cxxopts fmt::fmt)
+target_include_directories(cpu_single PRIVATE ../include ${cuda-api-wrappers_SOURCE_DIR}/src)
 set_target_properties(
-        cpu
+        cpu_single
         PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON
         CUDA_ARCHITECTURES ${SM_ARCH})
-target_compile_options(cpu PRIVATE -m64 --expt-extended-lambda --expt-relaxed-constexpr)
+target_compile_options(cpu_single PRIVATE -m64 --expt-extended-lambda --expt-relaxed-constexpr)
+
+add_executable(cpu_multi cpu_multi.cu)
+target_link_libraries(cpu_multi PRIVATE cxxopts fmt::fmt)
+target_include_directories(cpu_multi PRIVATE ../include ${cuda-api-wrappers_SOURCE_DIR}/src)
+set_target_properties(
+        cpu_multi
+        PROPERTIES
+        CUDA_SEPARABLE_COMPILATION ON
+        CUDA_ARCHITECTURES ${SM_ARCH})
+target_compile_options(cpu_multi PRIVATE -m64 --expt-extended-lambda --expt-relaxed-constexpr)
 
 add_executable(dichotomy dichotomy.cu)
 target_link_libraries(dichotomy PRIVATE cxxopts fmt::fmt)

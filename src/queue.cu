@@ -301,7 +301,7 @@ int main(int argc, char** argv) {
 
         fmt::print("┌{0:─^{1}}┐\n"
                    "|{2: ^{1}}|\n"
-                   "└{3:─^{1}}┘\n", "Total time without I/O (secs)", 51, timer.total(), "");
+                   "└{3:─^{1}}┘\n", "Total time without I/O (ms)", 51, timer.total(), "");
 
         if (!output.empty()) { // output pairs to file
             fmt::print("Join finished, writing pairs to file\n");

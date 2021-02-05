@@ -284,7 +284,7 @@ int main(int argc, char** argv) {
 
         deviceThread.join();
 
-        timer.finish(totalTime);
+        hyset::timer::host::finish(totalTime);
 
         if (timings) {
             hostTimer->print();
@@ -293,7 +293,7 @@ int main(int argc, char** argv) {
 
         fmt::print("┌{0:─^{1}}┐\n"
                    "|{2: ^{1}}|\n"
-                   "└{3:─^{1}}┘\n", "Total time without I/O (secs)", 51, timer.total(), "");
+                   "└{3:─^{1}}┘\n", "Total time without I/O (ms)", 51, timer.total(), "");
 
 
         if (!output.empty()) { // output pairs to file

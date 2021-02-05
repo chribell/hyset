@@ -105,8 +105,19 @@ namespace structs {
     struct partition {
         unsigned int id;
         std::vector<hyset::structs::block*> blocks;
+        bool blockBased;
+        unsigned int startID;
+        unsigned int endID;
+        unsigned int firstEntryPosition;
+        unsigned int lastEntryPosition;
 
-        partition(unsigned int id) : id(id) {}
+        partition(unsigned int id) : id(id), blockBased(true) {}
+
+        partition(unsigned int id, unsigned int startID, unsigned int endID,
+                  unsigned int firstEntryPosition, unsigned lastEntryPosition)
+                : id(id), blockBased(false),
+                startID(startID), endID(endID),
+                firstEntryPosition(firstEntryPosition), lastEntryPosition(lastEntryPosition) {}
 
         inline hyset::structs::block* start() {
             return blocks[0];
@@ -117,25 +128,23 @@ namespace structs {
         }
 
         inline unsigned int size() {
-            return (end()->endID - start()->startID) + 1;
+            return blockBased ? (end()->endID - start()->startID) + 1 : (endID - startID) + 1;
         }
 
         inline unsigned int start_id () {
-            return start()->start_id();
+            return blockBased ? start()->start_id() : startID;
         }
 
         inline unsigned int end_id () {
-            return end()->end_id();
+            return blockBased ? end()->end_id() : endID;
         }
 
         inline unsigned int first_entry_position() {
-            return start()->firstEntryPosition;
+            return blockBased ? start()->firstEntryPosition : firstEntryPosition;
         }
         inline unsigned int last_entry_position() {
-            return end()->lastEntryPosition;
+            return blockBased ? end()->lastEntryPosition : lastEntryPosition;
         }
-
-
     };
 }
 }

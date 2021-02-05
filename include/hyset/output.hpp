@@ -56,11 +56,38 @@ namespace output {
         }
     }
 
+    bool write_to_file(std::vector<std::shared_ptr<handler>>& outputHandlers, std::string& output) {
+        std::ofstream file;
+        file.open(output.c_str());
+
+        if (file) {
+            for(auto& x : outputHandlers) {
+                auto pairsHandler = (hyset::output::pairs_handler*) x.get();
+                for (auto& pair : pairsHandler->pairs) {
+                    fmt::print(file, "{} {}\n", pair.first, pair.second);
+                }
+            }
+
+            file.close();
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     template <typename T>
     unsigned long count(const std::map<T, std::shared_ptr<handler>>& outputHandlers) {
         unsigned long count = 0;
         for(auto& x : outputHandlers) {
             count += x.second->getCount();
+        }
+        return count;
+    }
+
+    unsigned long count(std::vector<std::shared_ptr<handler>>& outputHandlers) {
+        unsigned long count = 0;
+        for(auto& x : outputHandlers) {
+            count += x->getCount();
         }
         return count;
     }

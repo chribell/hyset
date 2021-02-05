@@ -67,6 +67,7 @@ int main(int argc, char** argv) {
                 "Output", output.c_str(), ""
         );
 
+        hyset::timer::host timer;
         hyset::timer::host hostTimings;
         hyset::timer::device deviceTimings;
         hyset::collection::host_collection hostCollection;
@@ -74,11 +75,13 @@ int main(int argc, char** argv) {
         hyset::timer::host::Interval* readInput = hostTimings.add("Read input collection");
         std::vector<hyset::structs::block> blocks =
                 hyset::collection::read_collection<jaccard>(input, hostCollection, blockSize, threshold);
-        hostTimings.finish(readInput);
+        hyset::timer::host::finish(readInput);
+
+        hyset::timer::host::Interval* totalTime = timer.add("Total time");
 
         hyset::timer::device::EventPair* transferInput = deviceTimings.add("Transfer input collection", 0);
         hyset::collection::device_collection deviceCollection(hostCollection);
-        deviceTimings.finish(transferInput);
+        hyset::timer::device::finish(transferInput);
 
         std::vector<hyset::structs::block>::iterator block;
 
@@ -93,11 +96,11 @@ int main(int argc, char** argv) {
 
         hyset::index::host_array_index* hostIndex;
 
-        hyset::timer::host::Interval* indexTime = hostTimings.add("Indexing for CPU partition");
+        hyset::timer::host::Interval* indexTime = hostTimings.add("Indexing");
 
         hostIndex = hyset::index::make_inverted_index(partition, hostCollection);
 
-        hostTimings.finish(indexTime);
+        hyset::timer::host::finish(indexTime);
 
         partition_pair pair;
 
@@ -132,7 +135,13 @@ int main(int argc, char** argv) {
                     threshold);
         }
 
-        hostTimings.finish(joinTime);
+        hyset::timer::host::finish(joinTime);
+
+        hyset::timer::host::finish(totalTime);
+
+        fmt::print("┌{0:─^{1}}┐\n"
+                   "|{2: ^{1}}|\n"
+                   "└{3:─^{1}}┘\n", "Total time without I/O (ms)", 51, timer.total(), "");
 
         if (!output.empty()) { // output pairs to file
             fmt::print("Join finished, writing pairs to file\n");
@@ -144,14 +153,12 @@ int main(int argc, char** argv) {
         } else { // output count
             fmt::print("┌{0:─^{1}}┐\n"
                        "|{2: ^{1}}|\n"
-                       "└{3:─^{1}}┘\n", "Result", 50, hyset::output::count(outputHandlers), "");
+                       "└{3:─^{1}}┘\n", "Result", 51, hyset::output::count(outputHandlers), "");
         }
 
         if (timings) {
             hostTimings.print();
         }
-
-
 
         return 0;
     } catch (const cxxopts::OptionException& e) {
