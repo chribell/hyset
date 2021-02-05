@@ -159,7 +159,7 @@ int main(int argc, char** argv) {
 
 
         std::vector<std::shared_ptr<hyset::output::handler>> outputHandlers;
-
+        std::vector<hyset::collection::host_collection> hostCollectionCopies;
 
         for (unsigned int i = 0; i < numOfPartitions; ++i) {
             if (output.empty()) {
@@ -167,6 +167,9 @@ int main(int argc, char** argv) {
             } else {
                 outputHandlers.push_back(std::make_shared<hyset::output::pairs_handler>(hyset::output::pairs_handler()));
             }
+
+            // lazy fix to remove sharing same candidateData structs among threads
+            hostCollectionCopies.push_back(hostCollection);
         }
 
         hyset::timer::host::Interval* joinTime = hostTimings.add("Join time");
@@ -175,7 +178,7 @@ int main(int argc, char** argv) {
             if (algorithm == "allpairs") {
                 hyset::algorithms::host::allpairs<hyset::structs::partition, hyset::index::host_array_index, jaccard>(
                         indexedPartitions[idx].get(),
-                        hostCollection,
+                        hostCollectionCopies[idx],
                         indices[idx].get(),
                         probePartitions[idx].get(),
                         hostCollection,
@@ -184,7 +187,7 @@ int main(int argc, char** argv) {
             } else {
                 hyset::algorithms::host::ppjoin<hyset::structs::partition, hyset::index::host_array_index, jaccard>(
                         indexedPartitions[idx].get(),
-                        hostCollection,
+                        hostCollectionCopies[idx],
                         indices[idx].get(),
                         probePartitions[idx].get(),
                         hostCollection,
