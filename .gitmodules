@@ -1,5 +1,15 @@
 [submodule "external/fmt"]
 	path = external/fmt
 	url = https://github.com/fmtlib/fmt.git
-#	branch = v2.2.1
-
+[submodule "external/cxxopts"]
+	path = external/cxxopts
+	url = https://github.com/jarro2783/cxxopts.git
+[submodule "external/json"]
+	path = external/json
+	url = https://github.com/ArthurSonzogni/nlohmann_json_cmake_fetchcontent
+[submodule "external/cuda-api-wrappers"]
+	path = external/cuda-api-wrappers
+	url = https://github.com/eyalroz/cuda-api-wrappers.git
+[submodule "external/concurrentqueue"]
+	path = external/concurrentqueue
+	url = https://github.com/cameron314/concurrentqueue.git
