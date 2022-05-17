@@ -1,6 +1,6 @@
 add_executable(cpu_single cpu_single.cu)
 target_link_libraries(cpu_single PRIVATE cxxopts fmt::fmt)
-target_include_directories(cpu_single PRIVATE ../include ${cuda-api-wrappers_SOURCE_DIR}/src)
+target_include_directories(cpu_single PRIVATE ../include ../external/cuda-api-wrappers/src)
 set_target_properties(
         cpu_single
         PROPERTIES
@@ -10,7 +10,7 @@ target_compile_options(cpu_single PRIVATE -m64 --expt-extended-lambda --expt-rel
 
 add_executable(cpu_multi cpu_multi.cu)
 target_link_libraries(cpu_multi PRIVATE cxxopts fmt::fmt)
-target_include_directories(cpu_multi PRIVATE ../include ${cuda-api-wrappers_SOURCE_DIR}/src)
+target_include_directories(cpu_multi PRIVATE ../include ../external/cuda-api-wrappers/src)
 set_target_properties(
         cpu_multi
         PROPERTIES
@@ -20,7 +20,7 @@ target_compile_options(cpu_multi PRIVATE -m64 --expt-extended-lambda --expt-rela
 
 add_executable(dichotomy dichotomy.cu)
 target_link_libraries(dichotomy PRIVATE cxxopts fmt::fmt)
-target_include_directories(dichotomy PRIVATE ../include ${cuda-api-wrappers_SOURCE_DIR}/src)
+target_include_directories(dichotomy PRIVATE ../include ../external/cuda-api-wrappers/src)
 set_target_properties(
         dichotomy
         PROPERTIES
@@ -30,7 +30,7 @@ target_compile_options(dichotomy PRIVATE -m64 --expt-extended-lambda --expt-rela
 
 add_executable(hybrid hybrid.cu)
 target_link_libraries(hybrid PRIVATE cxxopts fmt::fmt)
-target_include_directories(hybrid PRIVATE ../include ${cuda-api-wrappers_SOURCE_DIR}/src)
+target_include_directories(hybrid PRIVATE ../include ../external/cuda-api-wrappers/src)
 set_target_properties(
         hybrid
         PROPERTIES
@@ -40,7 +40,7 @@ target_compile_options(hybrid PRIVATE -m64 --expt-extended-lambda --expt-relaxed
 
 add_executable(fgss fgss.cu)
 target_link_libraries(fgss PRIVATE cxxopts fmt::fmt)
-target_include_directories(fgss PRIVATE ../include ${cuda-api-wrappers_SOURCE_DIR}/src)
+target_include_directories(fgss PRIVATE ../include ../external/cuda-api-wrappers/src)
 set_target_properties(
         fgss
         PROPERTIES
@@ -50,7 +50,7 @@ target_compile_options(fgss PRIVATE -m64 --expt-extended-lambda --expt-relaxed-c
 
 add_executable(bitmap bitmap.cu)
 target_link_libraries(bitmap PRIVATE cxxopts fmt::fmt)
-target_include_directories(bitmap PRIVATE ../include ${cuda-api-wrappers_SOURCE_DIR}/src)
+target_include_directories(bitmap PRIVATE ../include ../external/cuda-api-wrappers/src)
 set_target_properties(
         bitmap
         PROPERTIES
@@ -60,7 +60,7 @@ target_compile_options(bitmap PRIVATE -m64 --expt-extended-lambda --expt-relaxed
 
 add_executable(queue queue.cu)
 target_link_libraries(queue PRIVATE cxxopts fmt::fmt)
-target_include_directories(queue PRIVATE ../include ${concurrentqueue_SOURCE_DIR} ${cuda-api-wrappers_SOURCE_DIR}/src)
+target_include_directories(queue PRIVATE ../include ../external/concurrentqueue ../external/cuda-api-wrappers/src)
 set_target_properties(
         queue
         PROPERTIES
