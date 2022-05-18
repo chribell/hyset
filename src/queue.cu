@@ -1,4 +1,5 @@
 #include <iostream>
+#include <numeric>
 #include <map>
 #include <set>
 #include <cxxopts.hpp>
@@ -25,12 +26,14 @@ int main(int argc, char** argv) {
         unsigned int blockSize = 10000;
         unsigned int bitmap = 0;
         std::string algorithm = "allpairs";
-        unsigned int threads = 32;
+        unsigned int hybridThreads = 32;
+        unsigned int cpuThreads = 2;
         std::string output;
         std::string deviceMemory = "512M";
         unsigned int scenario = 1;
         bool timings = false;
         bool cooperative = false;
+        unsigned int gpus = 1;
 
         cxxopts::Options options(argv[0], "HySet Framework: Set Similarity Join using GPUs");
 
@@ -43,9 +46,12 @@ int main(int argc, char** argv) {
                 ("output", "Output file path", cxxopts::value<std::string>(output))
                 ("algorithm", "CPU filtering algorithm (allpairs|ppjoin)", cxxopts::value<std::string>(algorithm))
                 ("cooperative", "Run cpu-gpu in a separate thread", cxxopts::value<bool>(cooperative))
-                ("threads", "Threads per block for hybrid solution", cxxopts::value<unsigned int>(threads))
+                ("hybrid-threads", "Threads per block for hybrid solution", cxxopts::value<unsigned int>(hybridThreads))
                 ("device-memory", "Device memory for hybrid solution", cxxopts::value<std::string>(deviceMemory))
                 ("scenario", "Device kernel scenario for hybrid solution", cxxopts::value<unsigned int>(scenario))
+                ("gpus", "Number of GPUs to be used", cxxopts::value<unsigned int>(gpus))
+                // each gpu must be invoked from a separate CPU thread
+                ("cpu-threads", "Number of CPU threads", cxxopts::value<unsigned int>(cpuThreads))
                 ("timings", "Display timings", cxxopts::value<bool>(timings))
                 ("help", "Print help");
 
@@ -86,7 +92,7 @@ int main(int argc, char** argv) {
                 "Device memory", deviceMemory,
                 "Bitmap", bitmap,
                 "Scenario", scenario,
-                "Threads", threads,
+                "Hybrid threads", hybridThreads,
                 "Output", output.c_str(), ""
         );
 
@@ -131,19 +137,15 @@ int main(int argc, char** argv) {
 
         hostTimer->finish(indexTime);
 
-        if (output.empty()) {
-            outputHandlers.insert(std::pair<int, std::shared_ptr<hyset::output::count_handler>>(0, std::make_shared<hyset::output::count_handler>(hyset::output::count_handler())));
-            outputHandlers.insert(std::pair<int, std::shared_ptr<hyset::output::count_handler>>(1, std::make_shared<hyset::output::count_handler>(hyset::output::count_handler())));
-        } else {
-            outputHandlers.insert(std::pair<int, std::shared_ptr<hyset::output::pairs_handler>>(0, std::make_shared<hyset::output::pairs_handler>(hyset::output::pairs_handler())));
-            outputHandlers.insert(std::pair<int, std::shared_ptr<hyset::output::pairs_handler>>(1, std::make_shared<hyset::output::pairs_handler>(hyset::output::pairs_handler())));
+        for (unsigned int i = 0; i < cpuThreads + gpus; ++i) {
+            if (output.empty()) {
+                outputHandlers.insert(std::pair<int, std::shared_ptr<hyset::output::count_handler>>(i, std::make_shared<hyset::output::count_handler>(hyset::output::count_handler())));
+            } else {
+                outputHandlers.insert(std::pair<int, std::shared_ptr<hyset::output::pairs_handler>>(i, std::make_shared<hyset::output::pairs_handler>(hyset::output::pairs_handler())));
+            }
         }
 
         moodycamel::ConcurrentQueue<block_pair> queue;
-
-        unsigned int deviceJoins = 0;
-        unsigned int hostJoins = 0;
-
 
         std::vector<hyset::structs::block>::iterator firstBlock;
         std::vector<hyset::structs::block>::iterator secondBlock;
@@ -168,7 +170,9 @@ int main(int argc, char** argv) {
         }
 
 
-        auto lambda = [&] {
+        std::vector<unsigned int> invocations(cpuThreads + gpus, 0);
+
+        auto deviceLambda = [&](unsigned int threadID) {
             // TODO: find a more elegant way
             std::shared_ptr<hyset::collection::host_collection> hostCollectionPtr;
 
@@ -189,11 +193,11 @@ int main(int argc, char** argv) {
                         blockSize,
                         output.empty(),
                         threshold);
-                bitmapHandler->setOutputHandler(outputHandlers[1]);
+                bitmapHandler->setOutputHandler(outputHandlers[threadID]);
             } else if (cooperative) { // cpu-gpu
                 hybridHandler = new hyset::algorithms::hybrid::device_handler(deviceCollection,
                                                                                deviceCollection,
-                                                                               threads,
+                                                                               hybridThreads,
                                                                                scenario,
                                                                                output.empty(),
                                                                                blockSize,
@@ -210,7 +214,7 @@ int main(int argc, char** argv) {
                         blockSize,
                         output.empty(),
                         threshold);
-                fgssHandler->setOutputHandler(outputHandlers[1]);
+                fgssHandler->setOutputHandler(outputHandlers[threadID]);
             }
 
             block_pair pair;
@@ -245,44 +249,67 @@ int main(int argc, char** argv) {
                     // then join
                     fgssHandler->join(pair.first, pair.second);
                 }
-                deviceJoins++;
+                invocations[threadID]++;
             }
 
         };
 
-
-        std::thread deviceThread(lambda);
-        block_pair pair;
-        while (queue.try_dequeue(pair)) {
-            hyset::timer::host::Interval* joinTime = hostTimer->add("Join");
-            if (algorithm == "allpairs") {
-                hyset::algorithms::host::allpairs<hyset::structs::block, hyset::index::host_array_index, jaccard>(
-                        pair.first,
-                        hostCollection,
-                        hostIndices[pair.first->id],
-                        pair.second,
-                        hostCollection,
-                        outputHandlers[0],
-                        threshold);
-            } else {
-                hyset::algorithms::host::ppjoin<hyset::structs::block, hyset::index::host_array_index, jaccard>(
-                        pair.first,
-                        hostCollection,
-                        hostIndices[pair.first->id],
-                        pair.second,
-                        hostCollection,
-                        outputHandlers[0],
-                        threshold);
+        auto hostLambda = [&](unsigned int threadID) {
+            block_pair pair;
+            while (queue.try_dequeue(pair)) {
+                hyset::timer::host::Interval* joinTime = hostTimer->add("Join");
+                if (algorithm == "allpairs") {
+                    hyset::algorithms::host::allpairs<hyset::structs::block, hyset::index::host_array_index, jaccard>(
+                            pair.first,
+                            hostCollection,
+                            hostIndices[pair.first->id],
+                            pair.second,
+                            hostCollection,
+                            outputHandlers[threadID],
+                            threshold);
+                } else {
+                    hyset::algorithms::host::ppjoin<hyset::structs::block, hyset::index::host_array_index, jaccard>(
+                            pair.first,
+                            hostCollection,
+                            hostIndices[pair.first->id],
+                            pair.second,
+                            hostCollection,
+                            outputHandlers[threadID],
+                            threshold);
+                }
+                hostTimer->finish(joinTime);
+                invocations[threadID]++;
             }
-            hostTimer->finish(joinTime);
-            hostJoins++;
+        };
+        std::vector<std::thread> deviceThreads;
+        std::vector<std::thread> hostThreads;
+
+
+        for (unsigned int i = 0; i < cpuThreads; ++i) {
+            hostThreads.emplace_back(hostLambda, i);
         }
 
-        deviceThread.join();
+        for (unsigned int i = cpuThreads; i < cpuThreads + gpus; ++i) {
+            deviceThreads.emplace_back(deviceLambda, i);
+        }
 
+        for (auto& thread : hostThreads) {
+            thread.join();
+        }
+
+        for (auto& thread : deviceThreads) {
+            thread.join();
+        }
         timer.finish(totalTime);
 
-        unsigned int totalJoins = hostJoins + deviceJoins;
+        unsigned int totalJoins = std::accumulate(invocations.begin(), invocations.end(), (unsigned int) 0);
+
+        unsigned int hostJoins = std::accumulate(invocations.begin(),
+                                                 invocations.begin() + cpuThreads,
+                                                 (unsigned int) 0);
+        unsigned int deviceJoins = std::accumulate(invocations.begin() + cpuThreads,
+                                                 invocations.end(),
+                                                 (unsigned int) 0);
 
         double hostPercentage = ((double) hostJoins / (double) totalJoins) * 100.0;
         double devicePercentage = ((double) deviceJoins / (double) totalJoins) * 100.0;
