@@ -101,25 +101,51 @@ int main(int argc, char** argv) {
 
         hyset::memory_calculator<unsigned int> calculator = {std::stod(deviceMemory), scale};
 
-        hyset::timer::host timer;
-        std::shared_ptr<hyset::timer::host> hostTimer = std::make_shared<hyset::timer::host>();
-        std::shared_ptr<hyset::timer::device> deviceTimer = std::make_shared<hyset::timer::device>();
+        // create timers
+        hyset::timer::host timer; // main timer
+        // host timers
+        std::vector<std::shared_ptr<hyset::timer::host>> hostTimers;
+        std::vector<std::shared_ptr<hyset::timer::device>> deviceTimers;
+
+        for (unsigned int i = 0; i < cpuThreads; ++i) {
+            hostTimers.emplace_back(std::make_shared<hyset::timer::host>());
+        }
+
+        for (unsigned int i = 0; i < gpus; ++i) {
+            deviceTimers.emplace_back(std::make_shared<hyset::timer::device>());
+        }
 
         hyset::collection::host_collection hostCollection;
 
-        hyset::timer::host::Interval* readInput = hostTimer->add("Read input collection");
+        hyset::timer::host::Interval* readInput = timer.add("Read input collection");
         std::vector<hyset::structs::block> blocks =
                 hyset::collection::read_collection<jaccard>(input, hostCollection, blockSize, threshold);
-        hostTimer->finish(readInput);
+        hyset::timer::host::finish(readInput);
 
-
-        hyset::timer::host::Interval* totalTime = timer.add("Total time");
+        hyset::timer::host::Interval* totalTime = timer.add("Join");
 
         hyset::collection::host_collection hostCollectionCopy = hostCollection;
+        std::vector<std::shared_ptr<hyset::collection::device_collection>> deviceCollection;
+        deviceCollection.reserve(gpus);
 
-        hyset::timer::device::EventPair* transferInput = deviceTimer->add("Transfer collection", 0);
-        hyset::collection::device_collection deviceCollection(hostCollection);
-        deviceTimer->finish(transferInput);
+        auto deviceTransferLambda = [&](unsigned int threadID) {
+            cudaSetDevice(threadID);
+            std::shared_ptr<hyset::collection::host_collection> hostCollectionPtr;
+            hyset::timer::device::EventPair* transferInput = deviceTimers[threadID]->add("Transfer collection", 0);
+            deviceCollection[threadID] = std::make_shared<hyset::collection::device_collection>(hostCollection);
+            deviceTimers[threadID]->finish(transferInput);
+        };
+
+        std::vector<std::thread> deviceThreads;
+
+        // transfer collection to each device
+        for (unsigned int i = 0; i < gpus; ++i) {
+            deviceThreads.emplace_back(deviceTransferLambda, i);
+        }
+
+        for (auto& thread : deviceThreads) {
+            thread.join();
+        }
 
         fmt::print("┌{0:─^{1}}┐\n"
                    "|{2: ^{1}}|\n"
@@ -127,7 +153,8 @@ int main(int argc, char** argv) {
 
         output_map outputHandlers;
 
-        hyset::timer::host::Interval* indexTime = hostTimer->add("Inverted index");
+        cudaSetDevice(0);
+        hyset::timer::host::Interval* indexTime = timer.add("Inverted index");
 
         std::vector<hyset::index::host_array_index*> hostIndices;
 
@@ -135,7 +162,7 @@ int main(int argc, char** argv) {
             hostIndices.push_back(hyset::index::make_inverted_index(block, hostCollection));
         }
 
-        hostTimer->finish(indexTime);
+        timer.finish(indexTime);
 
         for (unsigned int i = 0; i < cpuThreads + gpus; ++i) {
             if (output.empty()) {
@@ -172,8 +199,10 @@ int main(int argc, char** argv) {
 
         std::vector<unsigned int> invocations(cpuThreads + gpus, 0);
 
-        auto deviceLambda = [&](unsigned int threadID) {
+        auto deviceJoinLambda = [&](unsigned int threadID) {
             // TODO: find a more elegant way
+            unsigned int deviceID = threadID - cpuThreads;
+            cudaSetDevice(deviceID);
             std::shared_ptr<hyset::collection::host_collection> hostCollectionPtr;
 
             hyset::algorithms::device::bitmap::handler* bitmapHandler;
@@ -186,17 +215,17 @@ int main(int argc, char** argv) {
                 hostCollectionPtr = std::make_shared<hyset::collection::host_collection>(hostCollectionCopy);
 
                 bitmapHandler = new hyset::algorithms::device::bitmap::handler(
-                        deviceTimer,
+                        deviceTimers[deviceID],
                         hostCollectionPtr,
-                        deviceCollection,
+                        deviceCollection[deviceID],
                         bitmap,
                         blockSize,
                         output.empty(),
                         threshold);
                 bitmapHandler->setOutputHandler(outputHandlers[threadID]);
             } else if (cooperative) { // cpu-gpu
-                hybridHandler = new hyset::algorithms::hybrid::device_handler(deviceCollection,
-                                                                               deviceCollection,
+                hybridHandler = new hyset::algorithms::hybrid::device_handler(deviceCollection[deviceID],
+                                                                               deviceCollection[deviceID],
                                                                                hybridThreads,
                                                                                scenario,
                                                                                output.empty(),
@@ -208,9 +237,9 @@ int main(int argc, char** argv) {
             } else { // prefix
                 hostCollectionPtr = std::make_shared<hyset::collection::host_collection>(hostCollectionCopy);
                 fgssHandler = new hyset::algorithms::device::fgssjoin::handler(
-                        deviceTimer,
+                        deviceTimers[deviceID],
                         hostCollectionPtr,
-                        deviceCollection,
+                        deviceCollection[deviceID],
                         blockSize,
                         output.empty(),
                         threshold);
@@ -257,7 +286,7 @@ int main(int argc, char** argv) {
         auto hostLambda = [&](unsigned int threadID) {
             block_pair pair;
             while (queue.try_dequeue(pair)) {
-                hyset::timer::host::Interval* joinTime = hostTimer->add("Join");
+                hyset::timer::host::Interval* joinTime = hostTimers[threadID]->add("Join");
                 if (algorithm == "allpairs") {
                     hyset::algorithms::host::allpairs<hyset::structs::block, hyset::index::host_array_index, jaccard>(
                             pair.first,
@@ -277,20 +306,20 @@ int main(int argc, char** argv) {
                             outputHandlers[threadID],
                             threshold);
                 }
-                hostTimer->finish(joinTime);
+                hostTimers[threadID]->finish(joinTime);
                 invocations[threadID]++;
             }
         };
-        std::vector<std::thread> deviceThreads;
-        std::vector<std::thread> hostThreads;
 
+        std::vector<std::thread> hostThreads;
+        deviceThreads.clear();
 
         for (unsigned int i = 0; i < cpuThreads; ++i) {
             hostThreads.emplace_back(hostLambda, i);
         }
 
         for (unsigned int i = cpuThreads; i < cpuThreads + gpus; ++i) {
-            deviceThreads.emplace_back(deviceLambda, i);
+            deviceThreads.emplace_back(deviceJoinLambda, i);
         }
 
         for (auto& thread : hostThreads) {
@@ -300,7 +329,7 @@ int main(int argc, char** argv) {
         for (auto& thread : deviceThreads) {
             thread.join();
         }
-        timer.finish(totalTime);
+        hyset::timer::host::finish(totalTime);
 
         unsigned int totalJoins = std::accumulate(invocations.begin(), invocations.end(), (unsigned int) 0);
 
@@ -322,13 +351,19 @@ int main(int argc, char** argv) {
                 "└{10:─^{1}}┘\n", "Joins processed", 51, 16, 17, "CPU", hostJoins, std::to_string(hostPercentage) + "%", "GPU", deviceJoins, std::to_string(devicePercentage) + "%", "");
 
         if (timings) {
-            hostTimer->print();
-            deviceTimer->print();
+            for (unsigned int i = 0; i < hostTimers.size(); ++i) {
+                hostTimers[i]->print(std::string("Host Thread #") + std::to_string(i) + std::string(" timings (in ms)"));
+            }
+            for (unsigned int i = 0; i < deviceTimers.size(); ++i) {
+                deviceTimers[i]->print(std::string("Device Thread #") + std::to_string(i) + std::string(" timings (in ms)"));
+            }
+            timer.print("Total timings (in ms)");
         }
 
         fmt::print("┌{0:─^{1}}┐\n"
                    "|{2: ^{1}}|\n"
-                   "└{3:─^{1}}┘\n", "Total time without I/O (ms)", 51, timer.total(), "");
+                   "└{3:─^{1}}┘\n", "Join timing (in ms)", 51, timer.sum(std::string("Join")), "");
+
 
         if (!output.empty()) { // output pairs to file
             fmt::print("Join finished, writing pairs to file\n");

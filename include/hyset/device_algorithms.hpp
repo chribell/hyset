@@ -137,7 +137,7 @@ namespace hyset{
 
                     handler(std::shared_ptr<hyset::timer::device>& timer,
                             std::shared_ptr<hyset::collection::host_collection>& hostCollection,
-                            hyset::collection::device_collection& inputCollection,
+                            std::shared_ptr<hyset::collection::device_collection>& inputCollection,
                             unsigned int bitmapSize, unsigned int blockSize, bool aggregate, double threshold) :
                             timer(timer), hostCollection(hostCollection), collection(inputCollection), bitmapSize(bitmapSize),
                             blockSize(blockSize), aggregate(aggregate), threshold(threshold) {
@@ -321,7 +321,8 @@ namespace hyset{
 
                     handler(std::shared_ptr<hyset::timer::device>& timer,
                             std::shared_ptr<hyset::collection::host_collection>& hostCollection,
-                            hyset::collection::device_collection& deviceCollection, unsigned int blockSize, bool aggregate, double threshold) :
+                            std::shared_ptr<hyset::collection::device_collection>& deviceCollection,
+                            unsigned int blockSize, bool aggregate, double threshold) :
                             timer(timer), hostCollection(hostCollection), collection(deviceCollection),
                             blockSize(blockSize), aggregate(aggregate), threshold(threshold) {
 
@@ -372,6 +373,7 @@ namespace hyset{
                                      collection, collection, *index, *first, *second, filter->ptr.get(), blockSize, threshold
                         );
                         timer->finish(filterTime);
+                        cudaDeviceSynchronize();
 
                         hyset::timer::device::EventPair* verifyTime =  timer->add("Verify", 0);
                         // verify pairs

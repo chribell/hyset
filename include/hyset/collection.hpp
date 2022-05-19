@@ -78,13 +78,13 @@ namespace collection {
         unsigned int* sizes;
         size_t sizesLen;
 
-        device_collection_wrapper(device_collection& deviceCollection) :
-            tokens(deviceCollection.tokens->ptr.get()),
-            tokensLen(deviceCollection.tokens->length),
-            starts(deviceCollection.starts->ptr.get()),
-            startsLen(deviceCollection.starts->length),
-            sizes(deviceCollection.sizes->ptr.get()),
-            sizesLen(deviceCollection.sizes->length) {
+        device_collection_wrapper(std::shared_ptr<device_collection>& deviceCollection) :
+            tokens(deviceCollection->tokens->ptr.get()),
+            tokensLen(deviceCollection->tokens->length),
+            starts(deviceCollection->starts->ptr.get()),
+            startsLen(deviceCollection->starts->length),
+            sizes(deviceCollection->sizes->ptr.get()),
+            sizesLen(deviceCollection->sizes->length) {
         }
 
     };

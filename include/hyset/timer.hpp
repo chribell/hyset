@@ -50,8 +50,8 @@ namespace timer {
             }
             return total;
         }
-        void print() {
-            fmt::print("┌{0:─^{1}}┐\n", "Host Timings (in ms)", 51);
+        void print(const std::string& header = "Host Timings (in ms)") {
+            fmt::print("┌{0:─^{1}}┐\n", header, 51);
             std::vector<std::string> distinctNames;
             for(auto& interval : intervals) {
                 if (std::find(distinctNames.begin(), distinctNames.end(), interval->name) == distinctNames.end())
@@ -113,8 +113,8 @@ namespace timer {
             }
             return total;
         }
-        void print() {
-            fmt::print("┌{0:─^{1}}┐\n", "Device Timings (in ms)", 51);
+        void print(const std::string& header = "Device Timings (in ms)") {
+            fmt::print("┌{0:─^{1}}┐\n", header, 51);
             std::vector<std::string> distinctNames;
             for(auto& pair : pairs) {
                 if (std::find(distinctNames.begin(), distinctNames.end(), pair->name) == distinctNames.end())

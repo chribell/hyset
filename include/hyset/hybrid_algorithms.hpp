@@ -38,8 +38,8 @@ namespace hybrid {
         unsigned int maxProbes;
         unsigned int maxCandidates;
 
-        device_handler(hyset::collection::device_collection& indexedCollection,
-                hyset::collection::device_collection& probeCollection,
+        device_handler(std::shared_ptr<hyset::collection::device_collection>& indexedCollection,
+                std::shared_ptr<hyset::collection::device_collection>& probeCollection,
                 unsigned int threads,
                 unsigned int scenario,
                 bool aggregate,
