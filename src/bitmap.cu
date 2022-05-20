@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
         hyset::timer::host::Interval* totalTime = timer.add("Total time");
 
         hyset::timer::device::EventPair* transferInput = deviceTimer->add("Transfer collection", 0);
-        hyset::collection::device_collection deviceCollection(hostCollection);
+        std::shared_ptr<hyset::collection::device_collection> deviceCollection = std::make_shared<hyset::collection::device_collection>(hostCollection);
         deviceTimer->finish(transferInput);
 
         std::vector<hyset::structs::block>::iterator block;

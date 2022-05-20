@@ -94,7 +94,7 @@ int main(int argc, char** argv) {
         hostTimings.finish(readInput);
 
         hyset::timer::device::EventPair* transferInput = deviceTimings.add("Transfer input collection", 0);
-        hyset::collection::device_collection deviceCollection(hostCollection);
+        std::shared_ptr<hyset::collection::device_collection> deviceCollection = std::make_shared<hyset::collection::device_collection>(hostCollection);
         deviceTimings.finish(transferInput);
 
 
