@@ -9,6 +9,18 @@ mkdir release && cd release
 cmake .. -DCMAKE_BUILD_TYPE=Release -DSM_ARCH=61 # for Compute Capability 6.1
 make -j 4
 ```
+
+# Compile with Docker
+```
+docker build -t hyset/build .
+mkdir release
+docker run -v /path/to/hyset/release:/build  \
+           -v /path/to/hyset/hyset:/project  \
+           hyset/build:latest \
+           bash -c "cmake ../project -DCMAKE_BUILD_TYPE=Release -DSM_ARCH=61 && cmake --build . -j 4"
+```
+
+
 # Datasets
 
 The datasets and the preprocess scripts can be found at http://ssjoin.dbresearch.uni-salzburg.at/datasets.html

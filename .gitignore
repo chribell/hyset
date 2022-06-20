@@ -3,3 +3,5 @@ cmake-build-debug-profiling/
 cmake-build-release/
 cmake-build-release-profiling/
 .idea/
+release/
+debug/
