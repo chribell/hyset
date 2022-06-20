@@ -20,8 +20,8 @@ make -j 4
 ```
 docker build -t hyset/build .
 mkdir release
-docker run -v /path/to/hyset/release:/build  \
-           -v /path/to/hyset/hyset:/project  \
+docker run -v $(pwd)/release:/build  \
+           -v $(pwd):/project  \
            hyset/build:latest \
            bash -c "cmake ../project -DCMAKE_BUILD_TYPE=Release -DSM_ARCH=61 && cmake --build . -j 4"
 ```
